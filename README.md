@@ -21,14 +21,12 @@ So you either manually check the market weekly (tedious) or drift on suboptimal 
 
 ## The Solution
 
-**Quartermaster — an autonomous agent that wakes up once a week and asks:**
-1. **Are my local models still the best?** (Ollama registry scan)
-2. **Are my API models still the best?** (Anthropic, OpenAI, Google, Mistral pricing)
-3. **What's my actual hardware bottleneck?** (GPU/CPU/RAM utilization)
-4. **Should I upgrade?** (ROI analysis)
-5. **What changed this week?** (market trends, new releases)
+**Quartermaster — a weekly intelligence brief that answers three questions:**
+1. **What changed in my build this week?** (workload drift, registry health, config changes)
+2. **What's new in the ecosystem?** (model releases, pricing shifts, benchmark updates)
+3. **What should I actually do?** (concrete, prioritized recommendations)
 
-Then it writes a report and sends it to Discord. You read it Sunday morning, decide, implement or skip.
+Then it writes a report and optionally sends a summary to a chat channel. You read it, decide, implement or skip.
 
 **Cost:** ~$0.20/run using a Sonnet-class API model at current (May 2026) prices. ~$10/year. Runs in ~2–4 minutes. (Anthropic caches static prompt content; actual cost is $0.15–0.25/run depending on cache hit rate.)
 
@@ -41,75 +39,80 @@ Then it writes a report and sends it to Discord. You read it Sunday morning, dec
 **1. `WORKLOADS.md`** (You maintain)
 ```markdown
 ## Heartbeat (recurring, 30m)
+- Last Verified: 2026-05-24
 - Model: ollama/qwen3:14b (local)
 - Requirements: Speed > Quality
 - Criticality: Medium
 - Cost: Free
 
-## Discord Responses (event-driven)
+## Main Session Responses (event-driven)
+- Last Verified: 2026-05-24
 - Model: anthropic/claude-sonnet-4-6 (API)
 - Requirements: Quality + reasoning
 - Criticality: High
 - Cost: Moderate
 ```
 
-→ Living registry of your tasks + their requirements. Update it as workflows change.
+→ Living registry of your tasks + their requirements. Each entry has a `Last Verified` date — Quartermaster flags anything older than 30 days. Update it as workflows change.
 
-**2. `quartermaster-report.md`** (Agent writes weekly)
+**2. `quartermaster/reports/YYYY-MM-DD.md`** (Agent writes weekly)
 ```markdown
-## Executive Summary
-Keep current setup / Test model X / Switch to Y for $X savings
+## Changes This Week
+[Workload drift, registry changes, config changes]
 
-## Local Model Landscape
-[Ollama registry scan + recommendations]
+## Ecosystem Developments
+[New model releases, pricing shifts, benchmark updates]
 
-## API Model Evaluation
-[Tier-1 pricing + cost analysis]
+## Recommendations
+[Prioritized Keep / Test / Switch / Upgrade verdicts]
 
-## Hardware Assessment
-[GPU/CPU utilization + upgrade ROI]
+## Decision Matrix
+[One verdict per dimension]
 ```
 
-→ Actionable intelligence every Sunday.
+→ Each report becomes the baseline for next week's delta.
 
-**3. Cron Job** (Runs in gateway)
+**3. `extract-usage.sh`** (Zero-cost manifest generator)
+
+A Python script that reads your OpenClaw cron jobs and config files — no LLM, no API calls. Generates `usage-manifest.md`: a snapshot of what's actually running (models, schedules, last-run status). Quartermaster reads this alongside WORKLOADS.md to detect drift automatically.
+
+**4. Cron Job** (Runs in gateway)
 ```
-Schedule: Sundays 7 AM Pacific
+Schedule: Sundays 7 AM (or your preferred time)
 Mode: Isolated cron job via openclaw cron add
 Model: Sonnet-class API model (required — see model note below)
-Output: Report + Discord notification
+Output: Dated report + optional chat notification
 ```
 
 ### How It Works
 
 ```
-Sunday 7 AM
+Scheduled trigger (Sunday 7 AM by default)
     ↓
-Gateway triggers cron job
+Step 0: Read last week's report — establishes delta baseline
     ↓
-Spawn Quartermaster with:
-  - System context (your hardware specs)
-  - WORKLOADS.md (your task requirements)
-  - Task: "Evaluate models and write report"
+Part 1: Run extract-usage.sh (zero cost, no LLM)
+        Compares manifest of what's actually running
+        against WORKLOADS.md — surfaces drift
     ↓
-Quartermaster reads WORKLOADS.md
+Part 2: Fetch targeted sources
+        Pricing pages, Ollama registry, benchmarks, news
+        No web search — direct fetches to authoritative URLs only
     ↓
-Quartermaster polls Ollama registry + API pricing
+Part 3: Produce prioritized recommendations
+        Keep / Test / Switch / Upgrade per dimension
+        "No changes this week" is a valid output
     ↓
-Quartermaster benchmarks against your actual tasks
+Write dated report + overwrite latest.md (next week's baseline)
     ↓
-Quartermaster calculates: "Should we keep/test/switch?"
+Optionally deliver summary to a chat channel
     ↓
-Quartermaster writes quartermaster-report.md
+You decide: implement, skip, or update WORKLOADS.md
     ↓
-Quartermaster sends summary to Discord
-    ↓
-You wake up Sunday morning with intelligence
-    ↓
-You decide: implement recommendation or skip
+Next week: new baseline, loop continues
 ```
 
-**Key:** No manual polling. No guesswork. Automated, repeatable, data-driven.
+**Key:** Delta-first. Stable conclusions carry forward silently. Airtime goes to what actually changed.
 
 ---
 
@@ -191,10 +194,10 @@ This scales infinitely. Build 10 new workflows? Quartermaster evaluates all 10 w
 4. **Choose your model:** Quartermaster requires a Sonnet-class API model minimum. Recommended: `anthropic/claude-sonnet-4-6`, `openai/gpt-4o`, or `google/gemini-2.0-pro`. Local 14B models fail on multi-step research tasks. See the build story at the bottom for why.
 
 5. **Customize quartermaster-subagent-spec-template.md:**
-   - Replace `YOUR_GUILD_ID` with your Discord guild ID
-   - Replace `YOUR_CHANNEL_ID` with your target channel ID
-   - Update hardware specs in system context
-   - Update workspace path in output paths
+   - Update hardware specs (CPU, GPU/VRAM, RAM) in the hardware context block
+   - Update `[YOUR_WORKSPACE]` with your workspace path
+   - If using Discord: replace `YOUR_DISCORD_CHANNEL_ID` with your target channel
+   - If not using Discord: remove the `--announce --channel discord --to` flags from the cron registration command
 
 6. **Register the cron job:**
    ```bash
@@ -225,26 +228,20 @@ This scales infinitely. Build 10 new workflows? Quartermaster evaluates all 10 w
 
 ### Customization
 
-**Different hardware?** Update the system context in the spawn spec:
-```json
-{
-  "attachments": [{
-    "name": "system-context.txt",
-    "content": "### Hardware\nCPU: Ryzen 9 5900X\nGPU: RTX 4090 24GB\n..."
-  }]
-}
-```
+**Different hardware?** Update the hardware context block in the agent persona — CPU, GPU, VRAM, RAM. The VRAM figure is what drives local model recommendations.
 
-**Different providers?** Quartermaster evaluates Anthropic/OpenAI/Google/Mistral by default. Adjust the task definition if you have access to other providers.
+**No local models / no Ollama?** Remove the local model research step from the task definition. Quartermaster works fine as an API-only evaluator.
+
+**Different providers?** Quartermaster evaluates Anthropic/OpenAI/Google/Mistral by default. Add or remove provider URLs from the sources list in the spec template.
 
 **Different frequency?** Change the cron schedule:
 - `0 7 * * 0` = Sundays 7 AM
-- `0 7 * * 1-5` = Weekdays 7 AM (for high-frequency evaluation)
-- `0 1 * * *` = Daily 1 AM (for cost-sensitive environments)
+- `0 7 * * 1` = Mondays 7 AM
+- `0 1 * * *` = Daily 1 AM
 
-**Different Discord channel?** Update the `onComplete.channelId` in the cron config.
+**No Discord?** Skip `--announce --channel discord --to` entirely when registering the cron job. Quartermaster writes the report and exits — no delivery needed.
 
-**No Discord?** Remove the `onComplete` section entirely. Quartermaster just writes the report.
+**Different chat channel?** Replace `--channel discord --to YOUR_CHANNEL_ID` with your target. OpenClaw supports Discord, Telegram, and other channels.
 
 ---
 
@@ -319,9 +316,10 @@ It's not trying to be clever. It's trying to be honest about what you need this 
 
 ```
 README.md                                  ← This file (overview)
-WORKLOADS-template.md                      ← Task registry template
+WORKLOADS-template.md                      ← Task registry template (copy to your workspace)
 quartermaster-report.md                    ← Report template
 quartermaster-subagent-spec-template.md    ← Full technical spec + customization guide
+extract-usage.sh / extract-usage.py        ← Deterministic manifest generator (copy to quartermaster/)
 LICENSE                                    ← MIT or Apache 2.0
 ```
 
