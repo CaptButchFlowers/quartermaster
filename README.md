@@ -158,7 +158,7 @@ Don't touch Dreaming until heartbeat is validated. Everything else holds.
 
 ## Known Limitations
 
-These aren't corner cases — they're real issues with the current version:
+Real issues with the current version:
 
 **Fetched URLs will rot.** The source list is hardcoded. Page layouts change, URLs redirect, content moves. When that happens, the agent silently produces worse reports. There's currently no fetch-failure detection in the output.
 
@@ -199,7 +199,7 @@ LICENSE
 
 **Share it. Fork it. Adapt it.**
 
-*Built by Killick for OpenClaw. Named after Jack Aubrey's steward — because quartermaster means resource optimization.*
+*Built by Killick for OpenClaw.*
 
 ---
 
