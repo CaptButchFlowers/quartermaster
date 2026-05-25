@@ -9,6 +9,8 @@ A weekly agent that monitors your AI model stack and tells you what to change. R
 2. **What's new in the ecosystem?** (model releases, pricing shifts, benchmark updates)
 3. **What should I do about it?** (concrete, prioritized recommendations)
 
+**Why Quartermaster?** My OpenClaw agent is named Killick, after Jack Aubrey's steward in Patrick O'Brian's Aubrey-Maturin series. A quartermaster on a ship manages provisions, resource allocation, and keeps everything running smoothly. Quartermaster does that for your AI infrastructure.
+
 ---
 
 ## How It Works
@@ -36,9 +38,17 @@ Optionally deliver summary to a chat channel
 You decide: implement, skip, or update WORKLOADS.md
 ```
 
+Most automation is brittle — runs once, breaks when reality changes. Quartermaster is designed to change as your needs change. It's not trying to be clever. It's trying to be honest about what you need this week, knowing next week will be different.
+
 Delta-first: stable conclusions carry forward silently. Airtime goes to what actually changed.
 
-**The recursive loop:** Add a new workload to `WORKLOADS.md` → Quartermaster evaluates it next Sunday, no code changes. Quartermaster itself is an entry in `WORKLOADS.md` — it evaluates its own model choice each week like everything else.
+**The recursive loop:** Add a new workload to `WORKLOADS.md` → Quartermaster evaluates it next Sunday, no code changes. Quartermaster itself is an entry in `WORKLOADS.md` — it evaluates its own model choice each week like everything else. And critically: if you add a workload to your config but forget to register it in `WORKLOADS.md`, Quartermaster flags it. The registry stays honest automatically.
+
+**Sources — targeted fetches, no web search:**
+- API pricing: provider pages + `openrouter.ai/models`
+- Local models: `ollama.com/library?sort=newest`, HuggingFace trending
+- Benchmarks: Artificial Analysis, Arena AI, LiveBench, Scale SEAL
+- Industry signals: Simon Willison, HuggingFace blog
 
 ---
 
