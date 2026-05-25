@@ -1,6 +1,6 @@
 # Quartermaster — Autonomous Infrastructure Intelligence for OpenClaw
 
-A weekly agent that monitors your AI model stack and tells you what to change. Runs every Sunday. Costs ~$10/year.
+A weekly agent that monitors your AI model stack and tells you what to change. Runs every Sunday. Costs ~$10/year (May 2026).
 
 **The problem:** New models drop weekly. Prices shift monthly. Your workloads evolve. Nobody manually checks — it's tedious and the opportunity cost is real. Quartermaster does it instead.
 
